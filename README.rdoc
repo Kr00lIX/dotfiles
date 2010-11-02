@@ -29,9 +29,11 @@ There are several additions, such as RVM loading if it's installed, and some com
 === Functions
 
   mkd test_dir  #  mkdir test_dir && cd test_dir
-  clf           # echo "" > ./log/*.log files
   rmd           # delete current dir if it empty and cd to parent
 
+  # Rails
+  clf           # echo "" > ./log/*.log files
+  tlog test     # tail -f ./log/test.log 
 
 == GIT
 
@@ -90,3 +92,5 @@ There are several additions, such as RVM loading if it's installed, and some com
 
   # patches
   lp = format-patch -1 HEAD
+
+
