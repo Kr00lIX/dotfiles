@@ -64,9 +64,16 @@ rmd(){ local P="`pwd`"; cd .. && rmdir "$P" || cd "$P"; }
 
 # clean log files
 clf(){
- local P="`pwd`";
- for logfile in `ls $P/log/*.log`; do
-   echo "" > $logfile && echo "clean $logfile";
- done
+  local P=`pwd`;
+  if [ ! -d "$P/log" ]; then
+     echo "Couldn't find $P/log dir"
+     exit 1
+  fi
+  for logfile in `ls $P/log/*.log`; do
+    if [ -f $logfile ]; then
+      echo "" > $logfile && echo "clean $logfile";
+    fi
+  done
+
 }
 
