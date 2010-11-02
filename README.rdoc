@@ -10,10 +10,83 @@
 
 There are several additions, such as RVM loading if it's installed, and some command aliases:
 
-*  g = git
-*  ss = ruby ./script/server
-*  ssd = ruby ./script/server -d
-*  sc = ruby ./script/console
-*  sb = ruby ./script/backgroundrb
-*  ru = rvm use
+=== Aliases
+  g      # git
+  ss     # ruby ./script/server
+  ssd    # ruby ./script/server -d
+  sc     # ruby ./script/console
+  sb     # ruby ./script/backgroundrb
+  ru     # rvm use
 
+  G      # | grep
+  L      # | less
+  ..     # cd ..
+  ...    # ../..
+  ....   # ../../..
+  .....  # ../../../..
+
+
+=== Functions
+
+  mkd test_dir  #  mkdir test_dir && cd test_dir
+  clf           # echo "" > ./log/*.log files
+  rmd           # delete current dir if it empty and cd to parent
+
+
+== GIT
+
+=== Aliases
+  a = add
+  s = status
+  co = checkout
+
+  ru = remote update
+  sb = show-branch --sha1-name
+  ls-del = ls-files -d
+  ls-mod = ls-files -m # including remote files
+  ls-new = ls-files --exclude-standard -o
+  ls-ign = ls-files --exclude-standard -o -i
+
+  up = pull --rebase
+  ff = pull --ff-only
+  sup = !git stash && git up && git pop
+  sff = !git stash && git ff && git pop
+
+  # Branching
+  b = branch
+  ba = branch -a -v -v
+  bs = !git-branch-status
+  bsi = !git-branch-status -i
+
+  # Commiting
+  c = commit
+  cm = commit -m
+
+  # SVN 
+  sc = svn dcommit
+  sr = svn rebase
+  spull = !git svn fetch && git svn rebase -l
+  srebase = !git stash && git svn rebase -l && git stash pop
+  sdcommit = !git stash && git svn dcommit && git stash pop
+
+  # Diffs
+  d = diff --color
+  ds = diff --color --stat
+  dsp = diff --color --stat -p
+
+  # Logs
+  l = log --color --decorate
+  ls = log --color --stat --decorate
+  lsp = log --color --stat -p --decorate
+  lg = log --graph '--pretty=tformat:%Cblue%h%Creset %Cgreen%ar%Creset %Cblue%d%Creset %s'
+  lga = log --graph '--pretty=tformat:%Cblue%h%Creset %Cgreen%ar%Creset %Cblue%d%Creset %s' --all
+  l19 = log --graph '--pretty=tformat:%Cblue%h%Creset %Cgreen%ar%Creset %Cblue%d%Creset %s' --all -19
+  # for complicated branches
+  lsd = log --graph '--pretty=tformat:%Cblue%h%Creset %Cgreen%ar%Creset %Cblue%d%Creset %s' --all --simplify-by-decoration
+
+  # merge
+  m = merge --no-ff --no-commit
+  mm = merge --squash --no-commit
+
+  # patches
+  lp = format-patch -1 HEAD
