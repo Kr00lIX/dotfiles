@@ -1,0 +1,418 @@
+ARGV.concat [ "--readline", "--prompt-mode", "simple" ]
+
+require 'irb/completion'
+
+require 'irb/ext/save-history'
+require 'rubygems'
+
+%w{ap wirble hirb interactive_editor what_methods looksee/shortcuts}.each do |gem|
+  begin
+    require gem
+  rescue
+    puts "Error loading #{gem} gem"
+  end
+end
+
+IRB.conf[:USE_READLINE] = true
+IRB.conf[:SAVE_HISTORY] = 1000
+IRB.conf[:HISTORY_PATH] = File::expand_path("~/.irb.history")
+IRB.conf[:AUTO_INDENT]  = true
+
+alias :x :exit
+alias :q :exit
+alias :quit :exit
+
+def ri arg
+  puts `ri #{arg}`
+end
+
+def cheat arg
+  puts `cheat #{arg}`
+end
+
+if ENV['RAILS_ENV']
+  def sql(query_string)
+    ActiveRecord::Base.connection.select_all(query_string)
+  end
+  unless Object.const_defined?('RAILS_DEFAULT_LOGGER')
+    require 'logger'
+    RAILS_DEFAULT_LOGGER = Logger.new(STDOUT)
+  end
+end
+
+class Object
+
+  def local_methods
+    self.methods.sort - self.class.superclass.instance_methods
+  end
+
+  def list_methods
+    inspectee = self.class == Class ? self : self.class
+    c_list = (inspectee.methods - Object.methods).sort
+    i_list = (inspectee.instance_methods - Object.instance_methods).sort
+    a_list = inspectee.class.ancestors
+    puts "Class Methods", "-"*13, c_list.inspect, '' unless c_list.empty?
+    puts "Instance Methods", "-"*16, i_list.inspect, '' unless i_list.empty?
+    puts "Ancestors", "-"*9, a_list.inspect, '' unless a_list.empty?
+  end
+end
+
+def copy(str)
+  IO.popen('pbcopy', 'w') { |f| f << str.to_s }
+end
+
+def paste
+  `pbpaste`
+end
+
+# Inline colorized ri (override wirble's)
+begin
+  Wirble.init
+  Wirble.colorize
+end if Gem.available?('wirble')
+
+begin
+  Looksee.styles.merge!(
+    :module => "\e[1;34m%s\e[0m" # purple
+  )
+end
+
+
+# Prompts
+IRB.conf[:PROMPT][:CUSTOM] = {
+    :PROMPT_N => ">> ",
+    :PROMPT_I => ">> ",
+    :PROMPT_S => nil,
+    :PROMPT_C => " > ",
+    :RETURN => "=> %s\n"
+}
+
+
+# Set default prompt
+IRB.conf[:PROMPT_MODE] = :CUSTOM
+
+# tab help
+IRB.conf[:AUTO_INDENT] = true
+
+# Simple ri integration
+def ri(*names)
+  system("ri #{names.map {|name| name.to_s}.join(" ")}")
+end
+
+
+# fresh irb. It uses an at_exit handler to yield it a block is given.
+def reset_irb
+  at_exit {exec($0)} # first registered is last to run
+  at_exit {yield if block_given?}
+
+  # From finalizer code in irb/ext/save-history.rb.. very ugly way to do it :S.. who wants to rewrite irb?
+  if num = IRB.conf[:SAVE_HISTORY] and (num = num.to_i) > 0
+    if hf = IRB.conf[:HISTORY_FILE]
+      file = File.expand_path(hf)
+    end
+    file = IRB.rc_file("_history") unless file
+    open(file, 'w') do |file|
+      hist = IRB::HistorySavingAbility::HISTORY.to_a
+      file.puts(hist[-num..-1] || hist)
+    end
+  end
+
+  # Make irb give us a clean exit (up until our at_exit handler above)
+  throw :IRB_EXIT, 0
+end
+
+
+# clear the screen.. with some self destruction ;-)
+def clear
+  eval "def clear; print #{`clear`.inspect} end"
+  clear
+end
+private :clear
+
+
+# Simple webserver (Loazy loading)
+def serve_files(opts = {})
+  require 'webrick'
+
+  opts[:host] ||= Socket.gethostname
+  opts[:dir]  ||= Dir.pwd
+  opts[:port] ||= opts[:dir].hash % 1000 + 10000
+  opts[:log] ||= Nop.new # hidden and simple.
+
+  server = WEBrick::HTTPServer.new(
+    :Host => opts[:host],
+    :Port => opts[:port],
+    :DocumentRoot => opts[:dir],
+    :Logger => opts[:log]
+  )
+
+  trap("INT") {server.shutdown}
+
+  puts "Serving \"#{opts[:dir]}\" at
+http://#{opts[:host]}:#{opts[:port]}/"
+  server.start
+  nil
+rescue
+  puts "Failed to start server! See $webrick_error for the exception."
+  $webrick_error = $!
+  nil
+end
+private :serve_files
+
+
+
+# load wirble
+begin
+  require "wirble"
+
+  Wirble::Colorize.colors.merge!(
+    :object_class => :black,
+    :class => :dark_gray,
+    :symbol => :red,
+    :symbol_prefix=> :blue
+  )
+
+  Wirble.init
+  Wirble.colorize
+rescue LoadError => err
+  puts "Cannot find wirble. Please run 'gem install wirble' to install it."
+end
+
+
+begin
+  require "ap"
+rescue LoadError => err
+  puts "Cannot find awesome_print gem. Please run 'gem install awesome_print' to install it."
+end
+
+#--------------------------------------------------------------------------------------------
+
+
+# show_regexp - stolen from the pickaxe
+def show_regexp(a, re)
+   if a =~ re
+      "#{$`}<<#{$&}>>#{$'}"
+   else
+      "no match"
+   end
+end
+
+# Convenience method on Regexp so you can do
+# /an/.show_match("banana")
+class Regexp
+   def show_match(a)
+       show_regexp(a, self)
+   end
+end
+
+## -------------------------------------------------------------------------------
+## Rails
+
+## method tracing
+
+# enable tracing
+def enable_trace( event_regex = /^(call|return)/, class_regex = /IRB|Wirble|RubyLex|RubyToken/ )
+  puts "Enabling method tracing with event regex #{event_regex.inspect} and class exclusion regex #{class_regex.inspect}"
+
+  set_trace_func Proc.new{|event, file, line, id, binding, classname|
+    printf "[%8s] %30s %30s (%s:%-2d)\n", event, id, classname, file, line if
+      event          =~ event_regex and
+      classname.to_s !~ class_regex
+  }
+  return
+end
+
+# disable tracing
+def disable_trace
+  puts "Disabling method tracing"
+
+  set_trace_func nil
+end
+
+# access helper methods from the rails console
+# http://errtheblog.com/post/43
+def Object.method_added(method)
+  return super(method) unless method == :helper
+  (class << self;self;end).send(:remove_method, :method_added)
+
+  def helper(*helper_names)
+    returning $helper_proxy ||= Object.new do |helper|
+      helper_names.each { |h| helper.extend "#{h}_helper".classify.constantize }
+    end
+  end
+
+  helper.instance_variable_set("@controller", ActionController::Integration::Session.new)
+
+  def helper.method_missing(method, *args, &block)
+    @controller.send(method, *args, &block) if @controller && method.to_s =~ /_path$|_url$/
+  end
+
+  helper :application rescue nil
+end if ENV['RAILS_ENV']
+
+
+# watching AR do it's thing
+# http://weblog.jamisbuck.org/2007/1/31/more-on-watching-activerecord
+# + comment from the UnderPantsGnome
+def log_to(stream, colorize=true)
+  ActiveRecord::Base.logger = Logger.new(stream)
+  ActiveRecord::Base.clear_active_connections!
+  ActiveRecord::Base.colorize_logging = colorize
+end
+
+# annotate column names of an AR model
+def show(obj)
+  y(obj.send("column_names"))
+end
+
+# logger active record query
+#ActiveRecord::Base.logger = Logger.new(STDOUT)
+
+
+# SSH support. Needs a lot of work still but it is nice to have.
+# This was just a 5 min hack. Thanks goes to Jamis for the
+# nice library.
+# Note that you must sleep to have the event loop run.
+def ssh_session(opts = {})
+  puts "Note: You must 'sleep' in order for the event loop to run in
+irb." if require 'net/ssh'
+
+  dynamic_session_class = Class.new do
+    @@default_opts = {
+      :user => ENV['USER'] || ENV['USERNAME'],
+      :port => 22
+    }.freeze
+
+    def initialize(opts = {}, aux = {})
+      opts, opts[:host] = aux, opts unless Hash === opts
+      opts = aux.merge opts
+      opts = @@default_opts.merge opts
+
+      @shutdown = false
+      @queue = []
+
+      ready = false
+      Thread.new {
+        begin
+          Net::SSH.start(opts[:host],
+            :username => opts[:user],
+            :password => opts[:password],
+            :port     => opts[:port]
+          ) do |session|
+            ready = true
+            loop {
+              break if self.shutdown?
+              self.process(session)
+              session.loop
+              sleep 0.01
+            }
+          end
+        rescue
+          puts "Failed while running ssh session! See $ssh_error for
+the exception."
+          $ssh_error = $!
+        ensure
+          ready = true
+        end
+      }
+      sleep 0 until ready
+    end
+
+    def shutdown?
+      @shutdown
+    end
+
+    def shutdown
+      @shutdown = true
+    end
+
+    def execute(&blk)
+      raise "Session shutdown" if shutdown?
+      @queue << blk
+      nil
+    end
+
+    def process(session)
+      while proc = @queue.pop
+        proc.call(session)
+      end
+    end
+
+    def forward_local(port, host, aux_port = port)
+      execute {|session|
+        session.forward.local('0.0.0.0', port, host, aux_port)
+      }
+    end
+    alias outgoing forward_local
+
+    def forward_remote(port, host, aux_port = port)
+      execute {|session|
+        session.forward.remote_to(port, host, aux_port)
+      }
+    end
+
+    def shell
+      require 'termios'
+      puts "Note: You will need to interrupt 'sleep' when your shell
+is done (usually ^C)."
+      execute {|session|
+        stdin_buffer = lambda do |enable|
+          attrs = Termios::getattr($stdin)
+          if enable
+            attrs.c_lflag |= Termios::ICANON | Termios::ECHO
+          else
+            attrs.c_lflag &= ~(Termios::ICANON | Termios::ECHO)
+          end
+          Termios::setattr($stdin, Termios::TCSANOW, attrs)
+        end
+
+        begin
+          stdin_buffer[false]
+
+          shell = session.shell.open(:pty => true)
+
+          loop do
+            break unless shell.open?
+            if IO.select([$stdin],nil,nil,0.01)
+              data = $stdin.sysread(1)
+              shell.send_data data
+            end
+
+            $stdout.print shell.stdout while shell.stdout?
+            $stdout.flush
+          end
+        ensure
+          stdin_buffer[true]
+        end
+      }
+      sleep
+    end
+    alias incoming forward_remote
+
+  end
+
+  Object.const_set('DynamicSSHSession', dynamic_session_class) unless Object.constants.include? 'DynamicSSHSession'
+
+  dynamic_session_class.new(opts)
+rescue
+  puts "Failed to create an ssh session! See $ssh_error for the
+exception."
+  $ssh_error = $!
+end
+private :ssh_session
+
+
+# IRB configuration reloading
+def IRB.reload
+    load __FILE__
+end
+
+# Simple benchmarking
+def time(times = 1)
+  require 'benchmark'
+
+  ret = nil
+  Benchmark.bm { |x| x.report { times.times { ret = yield } } }
+  ret
+end
+

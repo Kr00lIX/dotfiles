@@ -1,0 +1,72 @@
+# Path to your oh-my-zsh configuration.
+export ZSH=$HOME/.oh-my-zsh
+
+export ZSH_THEME="eastwood"
+
+plugins=(rails git ruby)
+
+source $ZSH/oh-my-zsh.sh
+
+#Prevent displaying RVM env variables as a path
+unsetopt auto_name_dirs
+
+#RVM settings
+if [[ -s ~/.rvm/scripts/rvm ]] ; then
+  source ~/.rvm/scripts/rvm
+  export PATH=$PATH:~/.rvm/bin
+  alias ru="rvm use"
+else
+  echo "$fg_bold[red]Warrning:$reset_color$fg[yellow] RVM not found in user home folder. Please use 'gem install rvm' to install it$reset_color"
+fi
+
+# disabling Git’s SSL certificate verification
+export GIT_SSL_NO_VERIFY=true
+
+export PATH=$PATH:/var/lib/gems/1.8/bin:~/.gem/ruby/1.8/bin
+
+# for rubymine
+#JDK_HOME=/usr/lib/jvm/java-1.6.0-openjdk/jre
+JDK_HOME=/usr/lib/jvm/java-6-sun/jre/
+export JDK_HOME
+
+#----------------------------------------------------------------
+# Aliases
+
+alias g="git"
+
+# Inline aliases, zsh -g aliases can be anywhere in command line
+alias -g G='| grep '
+alias -g L='| less'
+
+
+# Ruby On Rails Aliases
+alias sc='ruby ./script/console '
+alias ss='ruby ./script/server'
+alias ssd="ruby ./script/server -d"
+alias sb='ruby ./script/backgroundrb'
+
+
+# cd by .. or ... or ... or mv file ..../.
+alias '..'='cd ..'
+alias -g ...='../..'
+alias -g ....='../../..'
+alias -g .....='../../../..'
+
+
+#--------------
+# functions
+
+# create dir and cd to it
+mkd(){ mkdir "$1" && cd "$1"; }
+
+# delete current dir if it empty and cd to parent
+rmd(){ local P="`pwd`"; cd .. && rmdir "$P" || cd "$P"; }
+
+# clean log files
+clf(){
+ local P="`pwd`";
+ for logfile in `ls $P/log/*.log`; do
+   echo "" > $logfile && echo "clean $logfile";
+ done
+}
+
