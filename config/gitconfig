@@ -2,7 +2,7 @@
   excludesfile = ~/.gitignore
 
 [user]
-  name = Anatoliy
+  name = Anatoliy Kovalchuk
   email = kr00lix@gmail.com
 
 [color]
@@ -60,6 +60,10 @@
   c = commit
   cm = commit -m
  
+  #Push 
+  p = push 
+  pp = push origin master:production
+
 
   # svn aliases
   sc = svn dcommit
@@ -74,9 +78,10 @@
   dsp = diff --color --stat -p
 
   # Last operations
-  ld = diff HEAD~1 # last commit diff
+  ld = diff HEAD~1 # last diff
   lr = reset HEAD~1 # last reset
   lp = format-patch -1 HEAD # patch
+  lc = diff HEAD~1..HEAD # last commit diff 
 
   #Log
   l = log --color --decorate
@@ -97,12 +102,13 @@
 
   up = pull --rebase
   ff = pull --ff-only
-  sup = !git stash && git up && git pop
-  sff = !git stash && git ff && git pop
+  sup = !git stash && git up && git stash pop
+  sff = !git stash && git ff && git stash pop
 
   # merge
   m = merge --no-ff --no-commit
   mm = merge --squash --no-commit
+  mt = mergetool
 
   rc = rebase --continue
   
