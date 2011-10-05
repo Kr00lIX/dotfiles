@@ -1,6 +1,6 @@
 == Installation
 
-  git clone git@github.com:Kr00lIX/dotfiles.git ~/.dotfiles
+  git clone git://github.com/Kr00lIX/dotfiles.git ~/.dotfiles
   cd ~/.dotfiles
   ./install.sh
 

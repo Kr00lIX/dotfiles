@@ -59,6 +59,7 @@
   #Commiting
   c = commit
   cm = commit -m
+ 
 
   # svn aliases
   sc = svn dcommit
@@ -71,6 +72,11 @@
   d = diff --color
   ds = diff --color --stat
   dsp = diff --color --stat -p
+
+  # Last operations
+  ld = diff HEAD~1 # last commit diff
+  lr = reset HEAD~1 # last reset
+  lp = format-patch -1 HEAD # patch
 
   #Log
   l = log --color --decorate
@@ -98,5 +104,5 @@
   m = merge --no-ff --no-commit
   mm = merge --squash --no-commit
 
-  # patch
-  lp = format-patch -1 HEAD
+  rc = rebase --continue
+  
